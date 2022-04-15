@@ -1,0 +1,65 @@
+% To determine the controls and states for equilibrium steady level flight.
+close all;clear;clc;
+[ PC9 ] = Initialisation()
+% The process of trimming the aircraft is
+% referred to as finding the control input
+% settings that place the aircraft in the
+% required equilibrium condition.
+
+% function [ T ] = Trim(PC9, V)
+    Altitude = 0;   % (ft)
+    V = 40;         % Cruising speed (m/s)
+    [rho,~] = FlowProperties(Altitude,V);
+    CLtrim = (2 .* PC9.Inertia.m .* PC9.Inertia.g)./(rho .* V.^2 .* PC9.Geom.S)
+    alphatrim = (-PC9.Aero.CLde .* PC9.Aero.Cmo - PC9.Aero.Cmde.* CLtrim)./ ...
+        (-PC9.Aero.CLa .* PC9.Aero.Cmde + PC9.Aero.Cma .* PC9.Aero.CLde) 
+        % Angle of attack (rad)
+    
+%     alphatrim2 = (-PC9.Aero.Cmo - PC9.Aero.Cmde .* delta_e_trim)./(PC9.Aero.Cma) ;
+    beta = 0; % assumed
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    psidot = 0; % assumed % psidot = Steady heading rate
+    phi = 0; % assumed
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    
+    
+    %% Initial States
+    u0 = V .* cos(alphatrim) .* cos(beta)
+    v0 = V .* sin(beta)
+    w0 = V .* sin(alphatrim) .* cos(beta)
+    p = 0; % assumed
+    phat = (p .* PC9.Geom.b)./(2 .* V) % Roll Rate
+    q = psidot .* (sin(phi));
+    q_2nd = (PC9.Inertia.g ./ V) .* (PC9.Stability.nzmax - 1); % Constant Pitch Rate
+%     q_3rd = V ./ R ; % R = a curved flight path of constant radius at
+%     constant angle of attack
+    qhat = (q .* PC9.Geom.cbar)./(2 .* V) % non-dimensional Pitch Rate
+    r = psidot .* cos(phi); % Constant Yaw Rate
+    rhat = (r .* PC9.Geom.b)./(2 .* V)  % Yaw Rate
+
+    %% Control Inputs
+    % Elevator
+    ito = -(PC9.Aero.Cmo./PC9.Stability.Cbarmit);
+    delta_e_trim = ito + ( (PC9.Stability.h./PC9.Geom.cbar)./(PC9.Aero.Cmad) ) .* CLtrim 
+    % Throttle
+    Che0 = 0; % assumed
+    delta_t_trim = -(1./PC9.Stability.Chdeltat) .* ...
+        (Che0 + PC9.Stability.Chalphat .* alphatrim + PC9.Stability.Chdeltae .* delta_e_trim)
+    % Aileron
+    delta_a_trim = rhat .* ( (PC9.Aero.Cldr .* PC9.Aero.Cnr - PC9.Aero.Cndr .* PC9.Aero.Clr)./ ...
+        (PC9.Aero.Cndr .* PC9.Aero.Clda - PC9.Aero.Cldr .* PC9.Aero.Cnda) )
+    % Rudder
+    delta_r_trim = rhat .* ( (PC9.Aero.Cnda .* PC9.Aero.Clr - PC9.Aero.Clda .* PC9.Aero.Cnr)./ ...
+        (PC9.Aero.Cndr .* PC9.Aero.Clda - PC9.Aero.Cldr .* PC9.Aero.Cnda) )
+
+% end
+
+
+
+%% Expected Output 40 m/s & 0k ft (sea level)
+% Ulin = [delta_t; delta_e; delta_a; delta_r]
+U0_expected = [0.123046975849937;-0.066128172608231;0;0] ;
+% Xlin = [u; v; w; p; q; r; phi; theta; psi; x; y; z]
+X0_expected = [38.9913688789642;0;8.92598190366433;0;0;0;0;0.225044302359349;0;0;0;0] ;
